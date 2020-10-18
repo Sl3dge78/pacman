@@ -55,7 +55,9 @@ static Map *map = NULL;
 static TTF_Font *font = NULL;
 
 // GAMEPLAY
+static int lives = 3;
 static int score = 0;
+static int new_life_pts = 10000;
 static int power_up_timer = 0;
 static int blink_timer = 0;
 static const int POWERUP_MAX_TIME = 10000;
@@ -121,6 +123,7 @@ static void load_resources(SDL_Renderer *renderer) {
 static void init_game() {
 	score = 0;
 	pac_left = 240;
+	new_life_pts = 10000;
 
 	player->direction = WEST;
 	player->pos.x = 13.5f;
@@ -164,6 +167,7 @@ static void eat_at_pos(const int x, const int y, Map *map) {
 		case PAC:
 			map->map[x + y * map->rect.w] = EMPTY;
 			score += 100;
+			new_life_pts -= 100;
 			pac_left--;
 			break;
 		case POWERUP:
@@ -227,6 +231,11 @@ void update(const int delta_time) {
 		}
 	}
 
+	if (new_life_pts <= 0) {
+		lives++;
+		new_life_pts += 10000;
+	}
+
 	if (power_up_timer > 0) {
 		power_up_timer -= delta_time;
 		blink_timer -= delta_time;
@@ -254,7 +263,7 @@ void update(const int delta_time) {
     DRAWING
 ***************/
 
-static void draw_text(SDL_Renderer *renderer, char *text, const SDL_Point *src) {
+static int draw_text(SDL_Renderer *renderer, char *text, const SDL_Point *src) {
 	SDL_Color color = { 255, 255, 255, 255 };
 	SDL_Surface *surf = TTF_RenderText_Solid(font, text, color);
 
@@ -267,13 +276,32 @@ static void draw_text(SDL_Renderer *renderer, char *text, const SDL_Point *src) 
 
 	SDL_RenderCopy(renderer, texture, NULL, &dst);
 	SDL_DestroyTexture(texture);
+
+	return w + src->x;
 }
 
 static void draw_ui(SDL_Renderer *renderer) {
+	SDL_Point place = { 0, 0 };
+
+	// Score
 	char score_str[16];
 	sprintf_s(score_str, 16 * sizeof(char), "Score : %06d", score);
-	SDL_Point place = { 0, 0 };
-	draw_text(renderer, score_str, &place);
+	place.x = draw_text(renderer, score_str, &place);
+
+	place.x += 16;
+
+	char new_life_str[16];
+	sprintf_s(new_life_str, 16 * sizeof(char), "1UP : %06d", new_life_pts);
+	place.x = draw_text(renderer, new_life_str, &place);
+
+	place.x += 16;
+
+	// Lives
+	for (int i = 0; i < lives; i++) {
+		SDL_Rect src = { 0, 0, 16, 16 };
+		SDL_Rect dst = { place.x + (i * 16), 0, 16, 16 };
+		SDL_RenderCopy(renderer, player->texture, &src, &dst);
+	}
 }
 
 static void draw_player(SDL_Renderer *renderer) {
