@@ -37,8 +37,7 @@ typedef Tile TileMap[MAP_SIZE];
 typedef struct Map {
 	TileMap map;
 	SDL_Texture *texture;
-	Uint32 width;
-	Uint32 height;
+	SDL_Rect rect;
 
 } Map;
 
@@ -61,6 +60,7 @@ static int power_up_timer = 0;
 static int blink_timer = 0;
 static const int POWERUP_MAX_TIME = 10000;
 static int pac_left = 240;
+static const SDL_Point OFFSET = { 0, 16 };
 
 // Load all resources
 static void load_resources(SDL_Renderer *renderer) {
@@ -111,8 +111,10 @@ static void load_resources(SDL_Renderer *renderer) {
 	}
 	map->texture = IMG_LoadTexture(renderer, "resources/walls.png");
 	SDL_SetTextureColorMod(map->texture, 0, 0, 255);
-	map->width = MAP_WIDTH;
-	map->height = MAP_HEIGHT;
+	map->rect.x = 16;
+	map->rect.y = 16;
+	map->rect.w = MAP_WIDTH;
+	map->rect.h = MAP_HEIGHT;
 }
 
 // Reset game state to starting
@@ -132,7 +134,10 @@ static void init_game() {
 **************/
 
 static Tile get_tile_at_pos(const int x, const int y, const Map *map) {
-	return map->map[x + y * map->width];
+	if (x < 0 || x >= map->rect.w || y < 0 || y >= map->rect.h)
+		return EMPTY;
+
+	return map->map[x + y * map->rect.w];
 }
 
 static void on_power_up_start() {
@@ -157,12 +162,12 @@ static void toggle_map_color(SDL_Texture *texture) {
 static void eat_at_pos(const int x, const int y, Map *map) {
 	switch (get_tile_at_pos(x, y, map)) {
 		case PAC:
-			map->map[x + y * map->width] = EMPTY;
+			map->map[x + y * map->rect.w] = EMPTY;
 			score += 100;
 			pac_left--;
 			break;
 		case POWERUP:
-			map->map[x + y * map->width] = EMPTY;
+			map->map[x + y * map->rect.w] = EMPTY;
 			on_power_up_start();
 			break;
 	}
@@ -209,9 +214,17 @@ void update(const int delta_time) {
 					new_pos.x -= speed;
 			} break;
 		}
-
 		player->pos = new_pos;
+
 		eat_at_pos((int)player->pos.x, (int)player->pos.y, map);
+
+		// Wrap around
+		if (player->pos.x < OFFSET.x) {
+			player->pos.x = map->rect.w + OFFSET.x;
+		}
+		if (player->pos.x > map->rect.w + OFFSET.x) {
+			player->pos.x = OFFSET.x;
+		}
 	}
 
 	if (power_up_timer > 0) {
@@ -258,14 +271,14 @@ static void draw_text(SDL_Renderer *renderer, char *text, const SDL_Point *src) 
 
 static void draw_ui(SDL_Renderer *renderer) {
 	char score_str[16];
-	sprintf_s(score_str, 16 * sizeof(char), "Score : %d", score);
+	sprintf_s(score_str, 16 * sizeof(char), "Score : %06d", score);
 	SDL_Point place = { 0, 0 };
 	draw_text(renderer, score_str, &place);
 }
 
 static void draw_player(SDL_Renderer *renderer) {
 	SDL_Rect src = { player->direction % 2 * 16, player->direction / 2 * 16, 16, 16 };
-	SDL_Rect dst = { (int)(player->pos.x * 16.0f) - 8, (int)(player->pos.y * 16.0f) - 8, 16, 16 };
+	SDL_Rect dst = { (int)(player->pos.x * 16.0f) - 8 + OFFSET.x, (int)(player->pos.y * 16.0f) - 8 + OFFSET.y, 16, 16 };
 
 	SDL_RenderCopy(renderer, player->texture, &src, &dst);
 }
@@ -274,29 +287,29 @@ static void draw_map(SDL_Renderer *renderer) {
 	SDL_Rect src = { 0, 0, 16, 16 };
 	SDL_Rect dst = { 0, 0, 16, 16 };
 
-	for (Uint32 y = 0; y < map->height; y++) {
-		for (Uint32 x = 0; x < map->width; x++) {
-			Uint32 val = x + y * map->height;
+	for (Uint32 y = 0; y < map->rect.h; y++) {
+		for (Uint32 x = 0; x < map->rect.w; x++) {
+			Uint32 val = x + y * map->rect.h;
 
-			switch (map->map[x + y * map->width]) {
+			switch (map->map[x + y * map->rect.w]) {
 				case EMPTY: {
 					continue;
 				} break;
 				case PAC: {
 					SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-					SDL_Rect pac = { x * 16 + 6, y * 16 + 6, 4, 4 };
+					SDL_Rect pac = { x * 16 + 6 + OFFSET.x, y * 16 + 6 + OFFSET.y, 4, 4 };
 					SDL_RenderDrawRect(renderer, &pac);
 				} break;
 				case POWERUP: {
 					SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-					SDL_Rect pup = { x * 16 + 2, y * 16 + 2, 14, 14 };
+					SDL_Rect pup = { x * 16 + 2 + OFFSET.x, y * 16 + 2 + OFFSET.y, 14, 14 };
 					SDL_RenderDrawRect(renderer, &pup);
 				} break;
 				default: {
-					src.x = map->map[x + y * map->width] % 3 * 16;
-					src.y = map->map[x + y * map->width] / 3 * 16;
-					dst.x = x * 16;
-					dst.y = y * 16;
+					src.x = map->map[x + y * map->rect.w] % 3 * 16;
+					src.y = map->map[x + y * map->rect.w] / 3 * 16;
+					dst.x = x * 16 + OFFSET.x;
+					dst.y = y * 16 + OFFSET.y;
 					SDL_RenderCopy(renderer, map->texture, &src, &dst);
 				} break;
 			}
