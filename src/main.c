@@ -3,6 +3,7 @@
 #include "SDL2/SDL_ttf.h"
 
 #include "Utils.h"
+#include "debug.c"
 #include "game.c"
 
 int main(int argc, char *args[]) {
@@ -25,5 +26,6 @@ int main(int argc, char *args[]) {
 	IMG_Quit();
 	SDL_Quit();
 
+	DBG_dump_memory_leaks();
 	return 0;
 }
