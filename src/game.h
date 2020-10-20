@@ -33,6 +33,7 @@ enum Tile {
 	TURN_UP = 3,
 	TURN_LEFT = 4,
 	STRAIGHT_VER = 5,
+	OUTMAP = 6
 } typedef Tile;
 
 Tile get_tile_at_pos(const int x, const int y, const Map *map);

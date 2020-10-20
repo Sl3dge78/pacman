@@ -97,9 +97,6 @@ typedef struct Game {
 	SDL_Point camera_position;
 	Ghost *ghosts[4];
 
-	SDL_Point *path;
-	int path_length;
-
 } Game;
 
 static void switch_state(Game *game, State new_state);
@@ -115,7 +112,7 @@ static int get_tile_id(const int x, const int y, const Map *map) {
 
 Tile get_tile_at_pos(const int x, const int y, const Map *map) {
 	if (x < 0 || x >= map->rect.w || y < 0 || y >= map->rect.h)
-		return EMPTY;
+		return OUTMAP;
 
 	return map->map[get_tile_id(x, y, map)];
 }
@@ -233,10 +230,6 @@ static void input(SDL_Event *e, Game *game, Player *player) {
 				player->direction = EAST;
 				break;
 			case SDL_SCANCODE_1: {
-				SDL_Point start = { 13, 23 };
-				SDL_Point end = { 1, 1 };
-				a_star(game->map, &start, &end, &game->path, &game->path_length);
-
 			} break;
 		}
 	}
@@ -302,7 +295,7 @@ static void update(const int delta_time, Game *game) {
 			}
 
 			for (int i = 0; i < GHOST_AMT; i++) {
-				update_ghost(delta_time, game->ghosts[i]);
+				update_ghost(delta_time, game->ghosts[i], &game->player->pos, game->map);
 			}
 
 		} break;
@@ -393,9 +386,10 @@ static void draw_map(SDL_Renderer *renderer, Map *map, SDL_Point *camera_offset)
 			Uint32 val = x + y * map->rect.h;
 
 			switch (map->map[x + y * map->rect.w]) {
-				case EMPTY: {
+				case OUTMAP:
+				case EMPTY:
 					continue;
-				} break;
+					break;
 				case PAC: {
 					SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 					SDL_Rect pac = { x * 16 + 6 + camera_offset->x, y * 16 + 6 + camera_offset->y, 4, 4 };
@@ -412,7 +406,6 @@ static void draw_map(SDL_Renderer *renderer, Map *map, SDL_Point *camera_offset)
 					dst.x = x * 16 + camera_offset->x;
 					dst.y = y * 16 + camera_offset->y;
 					SDL_RenderCopy(renderer, map->texture, &src, &dst);
-					//SDL_RenderDrawRect(renderer, &dst);
 				} break;
 			}
 		}
@@ -430,10 +423,6 @@ static void draw(SDL_Renderer *renderer, Game *game) {
 
 	for (int i = 0; i < GHOST_AMT; i++) {
 		draw_ghost(renderer, game->ghosts[i], &game->camera_position);
-	}
-
-	if (game->path_length > 0) {
-		dbg_draw_a_star(renderer, game->path, game->path_length, game->camera_position);
 	}
 
 	SDL_RenderPresent(renderer);
@@ -500,9 +489,6 @@ static Game *load_resources(SDL_Renderer *renderer) {
 	game->camera_position.x = 0;
 	game->camera_position.y = 16;
 
-	game->path = NULL;
-	game->path_length = 0;
-
 	for (int i = 0; i < GHOST_AMT; i++) {
 		game->ghosts[i] = create_ghost(renderer);
 	}
@@ -531,8 +517,6 @@ static void destroy_game(Game *game) {
 
 	SDL_DestroyTexture(game->map->texture);
 	free(game->map);
-
-	free(game->path);
 
 	free(game);
 }

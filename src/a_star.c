@@ -50,7 +50,8 @@ void vector_free(Vector *vector) {
 	for (int i = 0; i < vector->length; i++) {
 		free(vector->list[i]);
 	}
-	free(vector->list);
+	if (vector->length > 0)
+		free(vector->list);
 	free(vector);
 }
 
@@ -126,7 +127,7 @@ void a_star(const Map *map, const SDL_Point *start, const SDL_Point *end, SDL_Po
 			}
 
 			children[i]->g = current_node->g + 1;
-			children[i]->h = SDL_POINT_Distance(&children[i]->pos, end);
+			children[i]->h = SDL_Point_Distance(&children[i]->pos, end);
 			children[i]->f = children[i]->g + children[i]->h;
 			int index = 0;
 			if (vector_has(open_list, children[i], &index)) {
