@@ -1,23 +1,16 @@
 
+#include "game.h"
+
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_image.h"
 #include "SDL2/SDL_ttf.h"
 #include <stdio.h>
 
-#include "Utils.h"
+#include "debug.h"
+#include "utils.h"
 
-#define FPS 60
-#define FRAME_TIME 1.0f / (float)FPS
-
-#define MAP_WIDTH 28
-#define MAP_HEIGHT 31
-#define MAP_SIZE MAP_WIDTH *MAP_HEIGHT
-
-#define POWERUP_MAX_TIME 10000
-#define PAC_AMOUNT 240
-
-#define PTS_FOR_NEW_LIFE 100000
-#define STARTING_LIVES 2
+#include "a_star.h"
+#include "ghost.h"
 
 /*
  * DECLARATIONS
@@ -28,18 +21,6 @@ enum Alignement {
 	ALIGN_CENTERED,
 	ALIGN_RIGHT
 } typedef Alignement;
-
-enum Tile {
-	PAC = -2,
-	POWERUP = -3,
-	EMPTY = -1,
-	TURN_RIGHT = 0,
-	TURN_DOWN = 1,
-	STRAIGHT_HOR = 2,
-	TURN_UP = 3,
-	TURN_LEFT = 4,
-	STRAIGHT_VER = 5,
-} typedef Tile;
 
 enum Direction {
 	EAST = 0,
@@ -114,6 +95,10 @@ typedef struct Game {
 	bool is_running;
 
 	SDL_Point camera_position;
+	Ghost *ghosts[4];
+
+	SDL_Point *path;
+	int path_length;
 
 } Game;
 
@@ -128,7 +113,7 @@ static int get_tile_id(const int x, const int y, const Map *map) {
 	return x + y * map->rect.w;
 }
 
-static Tile get_tile_at_pos(const int x, const int y, const Map *map) {
+Tile get_tile_at_pos(const int x, const int y, const Map *map) {
 	if (x < 0 || x >= map->rect.w || y < 0 || y >= map->rect.h)
 		return EMPTY;
 
@@ -161,20 +146,24 @@ static void handle_player_movement(int delta_time, Player *player, Map *map, flo
 	SDL_FPoint new_pos = player->pos;
 	switch (player->direction) {
 		case NORTH: {
-			if (get_tile_at_pos((int)player->pos.x, (int)(player->pos.y - speed - .5f), map) < 0)
+			if (get_tile_at_pos((int)(player->pos.x + .5f), (int)(player->pos.y - speed + 0.0f), map) < 0) {
 				new_pos.y -= speed;
+			}
 		} break;
 		case SOUTH: {
-			if (get_tile_at_pos((int)player->pos.x, (int)(player->pos.y + speed + .5f), map) < 0)
+			if (get_tile_at_pos((int)(player->pos.x + .5f), (int)(player->pos.y + speed + 1.0f), map) < 0) {
 				new_pos.y += speed;
+			}
 		} break;
 		case EAST: {
-			if (get_tile_at_pos((int)(player->pos.x + speed + 0.5f), (int)player->pos.y, map) < 0)
+			if (get_tile_at_pos((int)(player->pos.x + speed + 1.0f), (int)(player->pos.y + .5f), map) < 0) {
 				new_pos.x += speed;
+			}
 		} break;
 		case WEST: {
-			if (get_tile_at_pos((int)(player->pos.x - speed - 0.5f), (int)player->pos.y, map) < 0)
+			if (get_tile_at_pos((int)(player->pos.x - speed + 0.0f), (int)(player->pos.y + .5f), map) < 0) {
 				new_pos.x -= speed;
+			}
 		} break;
 	}
 	player->pos = new_pos;
@@ -204,8 +193,8 @@ static void switch_state(Game *game, State new_state) {
 		case STATE_WAIT: {
 			SDL_Log("State changed to WAIT");
 			game->player->direction = WEST;
-			game->player->pos.x = 14.0f;
-			game->player->pos.y = 23.5f;
+			game->player->pos.x = 13.0f;
+			game->player->pos.y = 23.0f;
 			game->state.wait_state_data.timer = 5000;
 			SDL_SetTextureColorMod(game->map->texture, 0, 0, 255);
 		} break;
@@ -243,9 +232,12 @@ static void input(SDL_Event *e, Game *game, Player *player) {
 			case SDL_SCANCODE_D:
 				player->direction = EAST;
 				break;
-			case SDL_SCANCODE_K:
-				take_damage(game);
-				break;
+			case SDL_SCANCODE_1: {
+				SDL_Point start = { 13, 23 };
+				SDL_Point end = { 1, 1 };
+				a_star(game->map, &start, &end, &game->path, &game->path_length);
+
+			} break;
 		}
 	}
 }
@@ -265,8 +257,8 @@ static void update(const int delta_time, Game *game) {
 		case STATE_NORMAL: {
 			Player *player = game->player;
 			handle_player_movement(delta_time, player, game->map, game->camera_position.x, game->camera_position.x + game->map->rect.w);
-			int id = get_tile_id(player->pos.x, player->pos.y, game->map);
-			switch (get_tile_at_pos(player->pos.x, player->pos.y, game->map)) {
+			int id = get_tile_id(player->pos.x + .5f, player->pos.y + .5f, game->map);
+			switch (get_tile_at_pos(player->pos.x + 0.5f, player->pos.y + 0.5f, game->map)) {
 				case PAC:
 					game->map->map[id] = EMPTY;
 					player->score += 100;
@@ -308,6 +300,11 @@ static void update(const int delta_time, Game *game) {
 					}
 				}
 			}
+
+			for (int i = 0; i < GHOST_AMT; i++) {
+				update_ghost(delta_time, game->ghosts[i]);
+			}
+
 		} break;
 
 		default:
@@ -382,7 +379,7 @@ static void draw_ui(SDL_Renderer *renderer, TTF_Font *font, Player *player, Stat
 
 static void draw_player(SDL_Renderer *renderer, Player *player, SDL_Point *camera_offset) {
 	SDL_Rect src = { player->direction % 2 * 16, player->direction / 2 * 16, 16, 16 };
-	SDL_Rect dst = { (int)(player->pos.x * 16.0f) - 8 + camera_offset->x, (int)(player->pos.y * 16.0f) - 8 + camera_offset->y, 16, 16 };
+	SDL_Rect dst = { (int)(player->pos.x * 16.0f) + camera_offset->x, (int)(player->pos.y * 16.0f) + camera_offset->y, 16, 16 };
 
 	SDL_RenderCopy(renderer, player->texture, &src, &dst);
 }
@@ -402,12 +399,12 @@ static void draw_map(SDL_Renderer *renderer, Map *map, SDL_Point *camera_offset)
 				case PAC: {
 					SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 					SDL_Rect pac = { x * 16 + 6 + camera_offset->x, y * 16 + 6 + camera_offset->y, 4, 4 };
-					SDL_RenderDrawRect(renderer, &pac);
+					SDL_RenderFillRect(renderer, &pac);
 				} break;
 				case POWERUP: {
 					SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 					SDL_Rect pup = { x * 16 + 2 + camera_offset->x, y * 16 + 2 + camera_offset->y, 14, 14 };
-					SDL_RenderDrawRect(renderer, &pup);
+					SDL_RenderFillRect(renderer, &pup);
 				} break;
 				default: {
 					src.x = map->map[x + y * map->rect.w] % 3 * 16;
@@ -415,6 +412,7 @@ static void draw_map(SDL_Renderer *renderer, Map *map, SDL_Point *camera_offset)
 					dst.x = x * 16 + camera_offset->x;
 					dst.y = y * 16 + camera_offset->y;
 					SDL_RenderCopy(renderer, map->texture, &src, &dst);
+					//SDL_RenderDrawRect(renderer, &dst);
 				} break;
 			}
 		}
@@ -429,6 +427,14 @@ static void draw(SDL_Renderer *renderer, Game *game) {
 	draw_player(renderer, game->player, &game->camera_position);
 
 	draw_ui(renderer, game->font, game->player, game->state.state);
+
+	for (int i = 0; i < GHOST_AMT; i++) {
+		draw_ghost(renderer, game->ghosts[i], &game->camera_position);
+	}
+
+	if (game->path_length > 0) {
+		dbg_draw_a_star(renderer, game->path, game->path_length, game->camera_position);
+	}
 
 	SDL_RenderPresent(renderer);
 }
@@ -494,6 +500,13 @@ static Game *load_resources(SDL_Renderer *renderer) {
 	game->camera_position.x = 0;
 	game->camera_position.y = 16;
 
+	game->path = NULL;
+	game->path_length = 0;
+
+	for (int i = 0; i < GHOST_AMT; i++) {
+		game->ghosts[i] = create_ghost(renderer);
+	}
+
 	return game;
 }
 
@@ -507,6 +520,10 @@ static void init_game(Player *player) {
 }
 
 static void destroy_game(Game *game) {
+	for (int i = 0; i < GHOST_AMT; i++) {
+		destroy_ghost(game->ghosts[i]);
+	}
+
 	TTF_CloseFont(game->font);
 
 	SDL_DestroyTexture(game->player->texture);
@@ -514,6 +531,8 @@ static void destroy_game(Game *game) {
 
 	SDL_DestroyTexture(game->map->texture);
 	free(game->map);
+
+	free(game->path);
 
 	free(game);
 }

@@ -1,6 +1,10 @@
 #include "debug.h"
 
+#include <stdio.h>
+
 #undef malloc
+#undef calloc
+#undef realloc
 #undef free
 
 typedef struct MemoryInfo {
@@ -37,9 +41,6 @@ static void add_memory_info(void *ptr, size_t size, char *filename, int line) {
 }
 
 static void delete_memory_info(void *ptr) {
-	// Parcourir tous les ptr jusqu'à trouver le bon
-
-	// Si il faut supprimer le premier facile !
 	if (array_start->info.ptr == ptr) {
 		MemoryLeak *leak = array_start;
 		array_start = array_start->next;
@@ -51,7 +52,8 @@ static void delete_memory_info(void *ptr) {
 	for (MemoryLeak *leak = array_start; leak != NULL; leak = leak->next) {
 		MemoryLeak *next_leak = leak->next;
 		if (next_leak == NULL) {
-			printf("Couldn't find ptr to free");
+			printf("Couldn't find ptr to free\n");
+			printf("Previous alloc: %s:%d\n", leak->info.file, leak->info.line);
 			return;
 		}
 		if (next_leak->info.ptr == ptr) { // Si il faut supprimer le suivant
@@ -94,6 +96,17 @@ void *DBG_calloc(size_t num, size_t size, char *filename, int line) {
 	return ptr;
 }
 
+void *DBG_realloc(void *ptr, size_t new_size, char *filename, int line) {
+	void *new_ptr = realloc(ptr, new_size);
+	if (new_ptr != NULL) {
+		if (ptr != NULL)
+			delete_memory_info(ptr);
+
+		add_memory_info(new_ptr, new_size, filename, line);
+	}
+	return new_ptr;
+}
+
 void DBG_free(void *ptr) {
 	delete_memory_info(ptr);
 	free(ptr);
@@ -115,7 +128,3 @@ void DBG_dump_memory_leaks() {
 	printf("==================================================================\n\n");
 	clear_array();
 }
-
-#define malloc(size) DBG_malloc(size, __FILE__, __LINE__)
-#define calloc(num, size) DBG_calloc(num, size, __FILE__, __LINE__)
-#define free(ptr) DBG_free(ptr)

@@ -2,9 +2,10 @@
 #include "SDL2/SDL_image.h"
 #include "SDL2/SDL_ttf.h"
 
-#include "Utils.h"
-#include "debug.c"
-#include "game.c"
+#include "debug.h"
+#include "utils.h"
+
+#include "game.h"
 
 int main(int argc, char *args[]) {
 	SDL_Init(SDL_INIT_EVERYTHING);
