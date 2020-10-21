@@ -1,5 +1,7 @@
 #include "utils.h"
 
+#include <math.h>
+
 unsigned int SDL_Point_Distance(const SDL_Point *a, const SDL_Point *b) {
 	int x = a->x - b->x;
 	int y = a->y - b->y;
@@ -18,4 +20,8 @@ float SDL_FPoint_Distance(const SDL_FPoint *a, const SDL_FPoint *b) {
 
 bool SDL_Point_Equals(const SDL_Point *a, const SDL_Point *b) {
 	return (a->x == b->x && a->y == b->y);
+}
+
+bool SDL_FPoint_Equals(const SDL_FPoint *a, const SDL_FPoint *b) {
+	return abs(a->x - b->x) < 0.01f && abs(a->y - b->y) < 0.01f;
 }

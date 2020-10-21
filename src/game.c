@@ -1,10 +1,11 @@
-
 #include "game.h"
+
+#include <math.h>
+#include <stdio.h>
 
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_image.h"
 #include "SDL2/SDL_ttf.h"
-#include <stdio.h>
 
 #include "debug.h"
 #include "utils.h"
@@ -15,19 +16,6 @@
 /*
  * DECLARATIONS
  */
-
-enum Alignement {
-	ALIGN_LEFT = 0,
-	ALIGN_CENTERED,
-	ALIGN_RIGHT
-} typedef Alignement;
-
-enum Direction {
-	EAST = 0,
-	SOUTH = 1,
-	NORTH = 2,
-	WEST = 3,
-} typedef Direction;
 
 typedef Tile TileMap[MAP_SIZE];
 
@@ -141,29 +129,43 @@ static void take_damage(Game *game) {
 static void handle_player_movement(int delta_time, Player *player, Map *map, float min_x, float max_x) {
 	float speed = 5.0f * delta_time / 1000.0f;
 	SDL_FPoint new_pos = player->pos;
+	SDL_FPoint bound_pos = player->pos;
+	bound_pos.x += .5f;
+	bound_pos.y += .5f; // .5 is the players' bound box
+
 	switch (player->direction) {
-		case NORTH: {
-			if (get_tile_at_pos((int)(player->pos.x + .5f), (int)(player->pos.y - speed + 0.0f), map) < 0) {
-				new_pos.y -= speed;
-			}
-		} break;
-		case SOUTH: {
-			if (get_tile_at_pos((int)(player->pos.x + .5f), (int)(player->pos.y + speed + 1.0f), map) < 0) {
-				new_pos.y += speed;
-			}
-		} break;
-		case EAST: {
-			if (get_tile_at_pos((int)(player->pos.x + speed + 1.0f), (int)(player->pos.y + .5f), map) < 0) {
-				new_pos.x += speed;
-			}
-		} break;
-		case WEST: {
-			if (get_tile_at_pos((int)(player->pos.x - speed + 0.0f), (int)(player->pos.y + .5f), map) < 0) {
-				new_pos.x -= speed;
-			}
-		} break;
+		case NORTH:
+			new_pos.y += -speed;
+			bound_pos.y += -speed - .5f;
+			new_pos.x = round(new_pos.x);
+			break;
+		case SOUTH:
+			new_pos.y += speed;
+			bound_pos.y += speed + .5f;
+			new_pos.x = round(new_pos.x);
+			break;
+		case EAST:
+			new_pos.x += speed;
+			bound_pos.x += speed + .5f;
+			new_pos.y = round(new_pos.y);
+			break;
+		case WEST:
+			new_pos.x += -speed;
+			bound_pos.x += -speed - .5f;
+			new_pos.y = round(new_pos.y);
+			break;
 	}
-	player->pos = new_pos;
+	switch (get_tile_at_pos((int)bound_pos.x, (int)bound_pos.y, map)) {
+		case EMPTY:
+		case OUTMAP:
+		case PAC:
+		case POWERUP:
+			player->pos = new_pos;
+			break;
+
+		default:
+			break;
+	}
 
 	// Wrap around
 	if (player->pos.x < min_x) {
@@ -193,6 +195,9 @@ static void switch_state(Game *game, State new_state) {
 			game->player->pos.x = 13.0f;
 			game->player->pos.y = 23.0f;
 			game->state.wait_state_data.timer = 5000;
+			for (int i = 0; i < GHOST_AMT; i++) {
+				ghost_reset(game->ghosts[i]);
+			}
 			SDL_SetTextureColorMod(game->map->texture, 0, 0, 255);
 		} break;
 
@@ -235,6 +240,19 @@ static void input(SDL_Event *e, Game *game, Player *player) {
 	}
 }
 
+static bool intersect_sprites(const SDL_FPoint *a, const SDL_FPoint *b) {
+	if (a->x + 1.0f >= b->x && a->x + 1.0f <= b->x + 1.0f && a->y + 1.0f >= b->y && a->y + 1.0f <= b->y + 1.0f)
+		return true;
+	if (a->x + 1.0f <= b->x && a->x + 1.0f >= b->x + 1.0f && a->y >= b->y && a->y <= b->y + 1.0f)
+		return true;
+	if (a->x >= b->x && a->x <= b->x + 1.0f && a->y >= b->y && a->y <= b->y + 1.0f)
+		return true;
+	if (a->x >= b->x && a->x <= b->x + 1.0f && a->y + 1.0f >= b->y && a->y + 1.0f <= b->y + 1.0f)
+		return true;
+
+	return false;
+}
+
 static void update(const int delta_time, Game *game) {
 	switch (game->state.state) {
 		case STATE_WAIT: {
@@ -248,6 +266,10 @@ static void update(const int delta_time, Game *game) {
 
 		} break;
 		case STATE_NORMAL: {
+			for (int i = 0; i < GHOST_AMT; i++) {
+				update_ghost(game->ghosts[i], delta_time, &game->player->pos, game->map);
+			}
+
 			Player *player = game->player;
 			handle_player_movement(delta_time, player, game->map, game->camera_position.x, game->camera_position.x + game->map->rect.w);
 			int id = get_tile_id(player->pos.x + .5f, player->pos.y + .5f, game->map);
@@ -293,9 +315,10 @@ static void update(const int delta_time, Game *game) {
 					}
 				}
 			}
-
 			for (int i = 0; i < GHOST_AMT; i++) {
-				update_ghost(delta_time, game->ghosts[i], &game->player->pos, game->map);
+				if (intersect_sprites(&player->pos, ghost_get_pos(game->ghosts[i]))) {
+					take_damage(game);
+				}
 			}
 
 		} break;
@@ -309,7 +332,7 @@ static void update(const int delta_time, Game *game) {
  *  DRAWING
  */
 
-static int draw_text(SDL_Renderer *renderer, TTF_Font *font, char *text, const SDL_Point *src, Alignement align) {
+int draw_text(SDL_Renderer *renderer, TTF_Font *font, char *text, const SDL_Point *src, Alignement align) {
 	SDL_Color color = { 255, 255, 255, 255 };
 	SDL_Surface *surf = TTF_RenderText_Solid(font, text, color);
 
@@ -423,6 +446,7 @@ static void draw(SDL_Renderer *renderer, Game *game) {
 
 	for (int i = 0; i < GHOST_AMT; i++) {
 		draw_ghost(renderer, game->ghosts[i], &game->camera_position);
+		dbg_draw_ghost(game->ghosts[i], renderer, game->font, &game->camera_position);
 	}
 
 	SDL_RenderPresent(renderer);

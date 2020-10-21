@@ -2,6 +2,7 @@
 #define GAME_H
 
 #include "SDL2/SDL.h"
+#include "SDL2/SDL_ttf.h"
 
 #define FPS 60
 #define FRAME_TIME 1.0f / (float)FPS
@@ -36,6 +37,21 @@ enum Tile {
 	OUTMAP = 6
 } typedef Tile;
 
+enum Alignement {
+	ALIGN_LEFT = 0,
+	ALIGN_CENTERED,
+	ALIGN_RIGHT
+} typedef Alignement;
+
+enum Direction {
+	EAST = 0,
+	SOUTH = 1,
+	NORTH = 2,
+	WEST = 3,
+} typedef Direction;
+
 Tile get_tile_at_pos(const int x, const int y, const Map *map);
+
+int draw_text(SDL_Renderer *renderer, TTF_Font *font, char *text, const SDL_Point *src, Alignement align);
 
 #endif
