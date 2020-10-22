@@ -423,6 +423,13 @@ static void draw_map(SDL_Renderer *renderer, Map *map, SDL_Point *camera_offset)
 					SDL_Rect pup = { x * 16 + 2 + camera_offset->x, y * 16 + 2 + camera_offset->y, 14, 14 };
 					SDL_RenderFillRect(renderer, &pup);
 				} break;
+				case DOOR: {
+					src.x = 3 * 16;
+					src.y = 0;
+					dst.x = x * 16 + camera_offset->x;
+					dst.y = y * 16 + camera_offset->y;
+					SDL_RenderCopy(renderer, map->texture, &src, &dst);
+				}
 				default: {
 					src.x = map->map[x + y * map->rect.w] % 3 * 16;
 					src.y = map->map[x + y * map->rect.w] / 3 * 16;
@@ -481,7 +488,7 @@ static Game *load_resources(SDL_Renderer *renderer) {
 			03, 02, 02, 02, 02, 01, -2, 05, 03, 02, 02, 01, -1, 05, 05, -1, 00, 02, 02, 04, 05, -2, 00, 02, 02, 02, 02, 04,
 			-1, -1, -1, -1, -1, 05, -2, 05, 00, 02, 02, 04, -1, 03, 04, -1, 03, 02, 02, 01, 05, -2, 05, -1, -1, -1, -1, -1,
 			-1, -1, -1, -1, -1, 05, -2, 05, 05, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 05, 05, -2, 05, -1, -1, -1, -1, -1,
-			-1, -1, -1, -1, -1, 05, -2, 05, 05, -1, 00, 02, 02, 02, 02, 02, 02, 01, -1, 05, 05, -2, 05, -1, -1, -1, -1, -1,
+			-1, -1, -1, -1, -1, 05, -2, 05, 05, -1, 00, 02, 02, -4, -4, 02, 02, 01, -1, 05, 05, -2, 05, -1, -1, -1, -1, -1,
 			02, 02, 02, 02, 02, 04, -2, 03, 04, -1, 05, -1, -1, -1, -1, -1, -1, 05, -1, 03, 04, -2, 03, 02, 02, 02, 02, 02,
 			-1, -1, -1, -1, -1, -1, -2, -1, -1, -1, 05, -1, -1, -1, -1, -1, -1, 05, -1, -1, -1, -2, -1, -1, -1, -1, -1, -1,
 			02, 02, 02, 02, 02, 01, -2, 00, 01, -1, 05, -1, -1, -1, -1, -1, -1, 05, -1, 00, 01, -2, 00, 02, 02, 02, 02, 02,
@@ -513,9 +520,10 @@ static Game *load_resources(SDL_Renderer *renderer) {
 	game->camera_position.x = 0;
 	game->camera_position.y = 16;
 
-	for (int i = 0; i < GHOST_AMT; i++) {
-		game->ghosts[i] = create_ghost(renderer);
-	}
+	game->ghosts[0] = create_ghost(renderer, 13, 11, 0);
+	game->ghosts[1] = create_ghost(renderer, 11.5f, 14.0f, 5000);
+	game->ghosts[2] = create_ghost(renderer, 13.5f, 14.0f, 10000);
+	game->ghosts[3] = create_ghost(renderer, 15.5f, 14.0f, 15000);
 
 	return game;
 }

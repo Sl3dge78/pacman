@@ -14,7 +14,7 @@ typedef struct Ghost Ghost;
 void ghost_reset(Ghost *ghost);
 SDL_FPoint *ghost_get_pos(Ghost *this);
 
-Ghost *create_ghost(SDL_Renderer *renderer);
+Ghost *create_ghost(SDL_Renderer *renderer, const float x, const float y, const int wait_time);
 void destroy_ghost(Ghost *ghost);
 void update_ghost(Ghost *ghost, int delta_time, const SDL_FPoint *player_pos, Map *map);
 void draw_ghost(SDL_Renderer *renderer, const Ghost *ghost, const SDL_Point *camera_offset);

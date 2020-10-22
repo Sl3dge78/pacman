@@ -17,7 +17,7 @@
 #define PTS_FOR_NEW_LIFE 100000
 #define STARTING_LIVES 2
 
-#define GHOST_AMT 1
+#define GHOST_AMT 4
 
 void run(SDL_Renderer *renderer);
 
@@ -25,8 +25,9 @@ struct Map;
 typedef struct Map Map;
 
 enum Tile {
-	PAC = -2,
+	DOOR = -4,
 	POWERUP = -3,
+	PAC = -2,
 	EMPTY = -1,
 	TURN_RIGHT = 0,
 	TURN_DOWN = 1,

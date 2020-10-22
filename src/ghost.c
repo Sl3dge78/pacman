@@ -19,6 +19,7 @@ enum GhostState {
 
 struct Ghost {
 	SDL_Texture *texture;
+	SDL_FPoint starting_position;
 	SDL_FPoint position;
 	Direction current_direction;
 	SDL_Point current_destination;
@@ -31,11 +32,12 @@ struct Ghost {
 	SDL_Rect src;
 
 	GhostState state;
+	int wait_time;
 };
 
 void ghost_reset(Ghost *this) {
-	this->position.x = 1.0f;
-	this->position.y = 1.0f;
+	this->position = this->starting_position;
+
 	this->current_direction = NORTH;
 
 	// Pathfinding
@@ -57,7 +59,7 @@ SDL_FPoint *ghost_get_pos(Ghost *this) {
 	return &this->position;
 }
 
-Ghost *create_ghost(SDL_Renderer *renderer) {
+Ghost *create_ghost(SDL_Renderer *renderer, const float x, const float y, const int wait_time) {
 	Ghost *this = malloc(sizeof(Ghost));
 
 	SDL_Surface *surf = IMG_Load("resources/ghost.png");
@@ -65,6 +67,10 @@ Ghost *create_ghost(SDL_Renderer *renderer) {
 	SDL_FreeSurface(surf);
 
 	ghost_reset(this);
+
+	this->starting_position.x = x;
+	this->starting_position.y = y;
+	this->wait_time = wait_time;
 	return this;
 }
 
@@ -72,15 +78,6 @@ void destroy_ghost(Ghost *ghost) {
 	SDL_DestroyTexture(ghost->texture);
 	free(ghost->path);
 	free(ghost);
-}
-
-static void update_path(Ghost *this, const SDL_FPoint *player_pos, Map *map) {
-	SDL_Point a = { round(this->position.x), round(this->position.y) };
-	SDL_Point b = { (int)player_pos->x, (int)player_pos->y };
-	a_star(map, &a, &b, &this->path, &this->path_length);
-	this->current_position_in_path = 0;
-	this->current_destination.x = this->position.x;
-	this->current_destination.y = this->position.y;
 }
 
 static void next_node(Ghost *this) {
@@ -103,18 +100,41 @@ static void next_node(Ghost *this) {
 		this->current_direction = SOUTH;
 }
 
-void update_ghost(Ghost *this, int delta_time, const SDL_FPoint *player_pos, Map *map) {
-	this->update_path_timer -= delta_time;
-	if (this->update_path_timer <= 0) {
-		this->update_path_timer = PATH_UPDATE_FREQ;
-		update_path(this, player_pos, map);
-		next_node(this);
-	}
+static void update_path(Ghost *this, const SDL_FPoint *player_pos, Map *map) {
+	SDL_Point a = { round(this->position.x), round(this->position.y) };
+	SDL_Point b = { (int)player_pos->x, (int)player_pos->y };
+	a_star(map, &a, &b, &this->path, &this->path_length);
+	this->current_position_in_path = 0;
+	this->current_destination.x = this->position.x;
+	this->current_destination.y = this->position.y;
 
-	if (this->path_length == this->current_position_in_path || this->path == NULL) {
-		// We reached destination
-		update_path(this, player_pos, map);
-		next_node(this);
+	next_node(this);
+}
+
+void update_ghost(Ghost *this, int delta_time, const SDL_FPoint *player_pos, Map *map) {
+	if (this->state == WAITING) {
+		this->wait_time -= delta_time;
+		if (this->position.y < 13.0f)
+			this->current_direction = SOUTH;
+		if (this->position.y > 15.0f)
+			this->current_direction = NORTH;
+
+		if (this->wait_time <= 0)
+			this->state = ATTACKING;
+	} else {
+		// PATHING
+		this->update_path_timer -= delta_time;
+		if (this->update_path_timer <= 0 || this->path_length == this->current_position_in_path || this->path == NULL) {
+			this->update_path_timer = PATH_UPDATE_FREQ;
+			switch (this->state) {
+				case ATTACKING: {
+					update_path(this, player_pos, map);
+				} break;
+				case FLEEING: {
+					// TODO
+				}
+			}
+		}
 	}
 
 	switch (this->current_direction) {
@@ -151,11 +171,12 @@ void draw_ghost(SDL_Renderer *renderer, const Ghost *ghost, const SDL_Point *cam
 }
 
 void dbg_draw_ghost(Ghost *this, SDL_Renderer *renderer, TTF_Font *font, const SDL_Point *camera_offset) {
+	/*
 	char buffer[20];
 	sprintf(buffer, "%f %f - %d", this->position.x, this->position.y, this->current_direction);
 	SDL_Point dst = { 0, 16 };
 	draw_text(renderer, font, buffer, &dst, ALIGN_LEFT);
-
+*/
 	for (int i = 0; i < this->path_length; i++) {
 		Uint8 r = 255 - ((this->path_length - i) * 255);
 		SDL_SetRenderDrawColor(renderer, r, 255, 255, 255);
