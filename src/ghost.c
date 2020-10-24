@@ -30,7 +30,7 @@ struct Ghost {
 	int update_path_timer;
 	int current_position_in_path;
 
-	SDL_Rect src;
+	SDL_Rect sprite;
 
 	GhostState state;
 	int wait_time;
@@ -48,10 +48,8 @@ void ghost_reset(Ghost *this) {
 	this->current_destination.x = (int)this->position.x;
 	this->current_destination.y = (int)this->position.y;
 
-	this->src.x = 0;
-	this->src.y = 0;
-	this->src.w = 16;
-	this->src.h = 16;
+	this->sprite.w = 16;
+	this->sprite.h = 16;
 
 	this->state = WAITING;
 }
@@ -60,12 +58,15 @@ SDL_FPoint *ghost_get_pos(Ghost *this) {
 	return &this->position;
 }
 
-Ghost *create_ghost(SDL_Renderer *renderer, const float x, const float y, const int wait_time) {
+Ghost *create_ghost(SDL_Renderer *renderer, const float x, const float y, const int wait_time, const int sprite_x, const int sprite_y) {
 	Ghost *this = malloc(sizeof(Ghost));
 
 	SDL_Surface *surf = IMG_Load("resources/ghost.png");
 	this->texture = SDL_CreateTextureFromSurface(renderer, surf);
 	SDL_FreeSurface(surf);
+
+	this->sprite.x = sprite_x;
+	this->sprite.y = sprite_y;
 
 	ghost_reset(this);
 
@@ -187,7 +188,13 @@ void ghost_kill(Ghost *this) {
 
 void draw_ghost(SDL_Renderer *renderer, const Ghost *ghost, const SDL_Point *camera_offset) {
 	SDL_Rect dst = { camera_offset->x + ghost->position.x * 16, camera_offset->y + ghost->position.y * 16, 16, 16 };
-	SDL_RenderCopy(renderer, ghost->texture, &ghost->src, &dst);
+	SDL_Rect src = ghost->sprite;
+	if (ghost->state == DEAD || ghost->state == FLEEING) {
+		src.x = 32;
+		src.y = 0;
+	}
+
+	SDL_RenderCopy(renderer, ghost->texture, &src, &dst);
 }
 
 void dbg_draw_ghost(Ghost *this, SDL_Renderer *renderer, TTF_Font *font, const SDL_Point *camera_offset) {

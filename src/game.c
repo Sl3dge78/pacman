@@ -58,6 +58,7 @@ enum State {
 
 	STATE_START_LEVEL,
 	STATE_WAIT,
+	STATE_DEATH,
 	STATE_NORMAL,
 	STATE_WIN,
 	STATE_GAMEOVER
@@ -123,7 +124,7 @@ static void take_damage(Game *game) {
 		switch_state(game, STATE_GAMEOVER);
 		return;
 	}
-	switch_state(game, STATE_WAIT);
+	switch_state(game, STATE_DEATH);
 }
 
 static void handle_player_movement(int delta_time, Player *player, Map *map, float min_x, float max_x) {
@@ -205,6 +206,10 @@ static void switch_state(Game *game, State new_state) {
 			SDL_Log("State changed to NORMAL");
 			game->state.normal_state_data.blink_timer = 0;
 			game->state.normal_state_data.power_up_timer = 0;
+		} break;
+
+		case STATE_DEATH: {
+			game->state.kill_state_data.kill_timer = 3000;
 		} break;
 
 		case STATE_WIN: {
@@ -327,6 +332,14 @@ static void update(const int delta_time, Game *game) {
 
 		} break;
 
+		case STATE_DEATH: {
+			KillStateData *data = &game->state.kill_state_data;
+			if (data->kill_timer > 0) {
+				data->kill_timer -= delta_time;
+			} else {
+				switch_state(game, STATE_WAIT);
+			}
+		}
 		default:
 			break;
 	}
@@ -524,10 +537,10 @@ static Game *load_resources(SDL_Renderer *renderer) {
 	game->camera_position.x = 0;
 	game->camera_position.y = 16;
 
-	game->ghosts[0] = create_ghost(renderer, 13, 11, 0);
-	game->ghosts[1] = create_ghost(renderer, 11.5f, 14.0f, 5000);
-	game->ghosts[2] = create_ghost(renderer, 13.5f, 14.0f, 10000);
-	game->ghosts[3] = create_ghost(renderer, 15.5f, 14.0f, 15000);
+	game->ghosts[0] = create_ghost(renderer, 13, 11, 0, 0, 0);
+	game->ghosts[1] = create_ghost(renderer, 11.5f, 14.0f, 5000, 0, 16);
+	game->ghosts[2] = create_ghost(renderer, 13.5f, 14.0f, 10000, 16, 0);
+	game->ghosts[3] = create_ghost(renderer, 15.5f, 14.0f, 15000, 16, 16);
 
 	return game;
 }
