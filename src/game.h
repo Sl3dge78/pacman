@@ -49,6 +49,7 @@ enum Direction {
 	SOUTH = 1,
 	NORTH = 2,
 	WEST = 3,
+	NONE
 } typedef Direction;
 
 Tile get_tile_at_pos(const int x, const int y, const Map *map);

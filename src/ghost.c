@@ -14,7 +14,8 @@
 enum GhostState {
 	WAITING,
 	ATTACKING,
-	FLEEING
+	FLEEING,
+	DEAD
 } typedef GhostState;
 
 struct Ghost {
@@ -85,19 +86,21 @@ static void next_node(Ghost *this) {
 	if (this->current_position_in_path >= this->path_length) {
 		this->current_destination.x = this->position.x;
 		this->current_destination.y = this->position.y;
-		return;
+	} else {
+		this->current_destination = this->path[this->current_position_in_path];
 	}
 
-	this->current_destination = this->path[this->current_position_in_path];
-
-	if (this->current_destination.x < this->position.x && this->current_destination.y == (int)this->position.y)
-		this->current_direction = WEST;
-	else if (this->current_destination.x > this->position.x && this->current_destination.y == (int)this->position.y)
-		this->current_direction = EAST;
-	else if (this->current_destination.x == (int)this->position.x && this->current_destination.y < this->position.y)
-		this->current_direction = NORTH;
-	else if (this->current_destination.x == (int)this->position.x && this->current_destination.y > this->position.y)
-		this->current_direction = SOUTH;
+	if (this->current_destination.y == round(this->position.y)) {
+		if (this->current_destination.x < (int)this->position.x)
+			this->current_direction = WEST;
+		else if (this->current_destination.x > (int)this->position.x)
+			this->current_direction = EAST;
+	} else if (this->current_destination.x == round(this->position.x)) {
+		if (this->current_destination.y < (int)this->position.y)
+			this->current_direction = NORTH;
+		else if (this->current_destination.y > (int)this->position.y)
+			this->current_direction = SOUTH;
+	}
 }
 
 static void update_path(Ghost *this, const SDL_FPoint *player_pos, Map *map) {
@@ -107,62 +110,79 @@ static void update_path(Ghost *this, const SDL_FPoint *player_pos, Map *map) {
 	this->current_position_in_path = 0;
 	this->current_destination.x = this->position.x;
 	this->current_destination.y = this->position.y;
-
-	next_node(this);
 }
 
 void update_ghost(Ghost *this, int delta_time, const SDL_FPoint *player_pos, Map *map) {
-	if (this->state == WAITING) {
-		this->wait_time -= delta_time;
-		if (this->position.y < 13.0f)
-			this->current_direction = SOUTH;
-		if (this->position.y > 15.0f)
-			this->current_direction = NORTH;
-
-		if (this->wait_time <= 0)
-			this->state = ATTACKING;
-	} else {
-		// PATHING
-		this->update_path_timer -= delta_time;
-		if (this->update_path_timer <= 0 || this->path_length == this->current_position_in_path || this->path == NULL) {
-			this->update_path_timer = PATH_UPDATE_FREQ;
-			switch (this->state) {
-				case ATTACKING: {
-					update_path(this, player_pos, map);
-				} break;
-				case FLEEING: {
-					// TODO
-				}
+	switch (this->state) {
+		case WAITING:
+			this->wait_time -= delta_time;
+			if (this->position.y <= 13.0f) {
+				this->current_direction = SOUTH;
+				this->current_destination.y = 15;
+			} else if (this->position.y >= 15.0f) {
+				this->current_direction = NORTH;
+				this->current_destination.y = 13;
 			}
-		}
+
+			if (this->wait_time <= 0)
+				this->state = ATTACKING;
+			break;
+		case ATTACKING:
+			this->update_path_timer -= delta_time;
+			if (this->update_path_timer <= 0 || this->current_position_in_path >= this->path_length) {
+				this->update_path_timer = PATH_UPDATE_FREQ;
+				update_path(this, player_pos, map);
+				next_node(this);
+			}
+			break;
+		case FLEEING:
+			// TODO
+			break;
+		case DEAD:
+			this->update_path_timer -= delta_time;
+			if (this->current_position_in_path >= this->path_length) {
+				this->state = ATTACKING;
+			} else if (this->update_path_timer <= 0) {
+				this->update_path_timer = PATH_UPDATE_FREQ;
+				update_path(this, &this->starting_position, map);
+			}
+			break;
 	}
 
 	switch (this->current_direction) {
 		case NORTH:
 			this->position.y -= GHOST_SPEED * delta_time / 1000;
 			this->position.x = round(this->position.x);
-			if (this->position.y < this->current_destination.y)
+			if (this->position.y <= this->current_destination.y)
 				next_node(this);
 			break;
 		case SOUTH:
 			this->position.y += GHOST_SPEED * delta_time / 1000;
 			this->position.x = round(this->position.x);
-			if (this->position.y > this->current_destination.y)
+			if (this->position.y >= this->current_destination.y)
 				next_node(this);
 			break;
 		case WEST:
 			this->position.x -= GHOST_SPEED * delta_time / 1000;
 			this->position.y = round(this->position.y);
-			if (this->position.x < this->current_destination.x)
+			if (this->position.x <= this->current_destination.x)
 				next_node(this);
 			break;
 		case EAST:
 			this->position.x += GHOST_SPEED * delta_time / 1000;
 			this->position.y = round(this->position.y);
-			if (this->position.x > this->current_destination.x)
+			if (this->position.x >= this->current_destination.x)
 				next_node(this);
 			break;
+		default:
+
+			break;
 	}
+}
+
+void ghost_kill(Ghost *this) {
+	this->state = DEAD;
+	this->update_path_timer = 0;
 }
 
 void draw_ghost(SDL_Renderer *renderer, const Ghost *ghost, const SDL_Point *camera_offset) {
@@ -178,9 +198,14 @@ void dbg_draw_ghost(Ghost *this, SDL_Renderer *renderer, TTF_Font *font, const S
 	draw_text(renderer, font, buffer, &dst, ALIGN_LEFT);
 */
 	for (int i = 0; i < this->path_length; i++) {
-		Uint8 r = 255 - ((this->path_length - i) * 255);
+		Uint8 r = (255 / this->path_length * i);
 		SDL_SetRenderDrawColor(renderer, r, 255, 255, 255);
 		SDL_Rect dst = { this->path[i].x * 16 + camera_offset->x, this->path[i].y * 16 + camera_offset->y, 16, 16 };
+		SDL_RenderDrawRect(renderer, &dst);
+	}
+	if (this->path != NULL) {
+		SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+		SDL_Rect dst = { this->current_destination.x * 16 + camera_offset->x, this->current_destination.y * 16 + camera_offset->y, 16, 16 };
 		SDL_RenderDrawRect(renderer, &dst);
 	}
 }

@@ -19,4 +19,5 @@ void destroy_ghost(Ghost *ghost);
 void update_ghost(Ghost *ghost, int delta_time, const SDL_FPoint *player_pos, Map *map);
 void draw_ghost(SDL_Renderer *renderer, const Ghost *ghost, const SDL_Point *camera_offset);
 void dbg_draw_ghost(Ghost *this, SDL_Renderer *renderer, TTF_Font *font, const SDL_Point *camera_offset);
+void ghost_kill(Ghost *ghost);
 #endif

@@ -307,17 +307,21 @@ static void update(const int delta_time, Game *game) {
 						else
 							data->blink_timer = 100;
 					}
+				}
 
-					if (data->power_up_timer < 0) {
-						data->power_up_timer = 0;
-						SDL_SetTextureColorMod(game->map->texture, 0, 0, 255);
-						player->is_powered_up = false;
-					}
+				if (data->power_up_timer < 0) {
+					data->power_up_timer = 0;
+					SDL_SetTextureColorMod(game->map->texture, 0, 0, 255);
+					player->is_powered_up = false;
 				}
 			}
 			for (int i = 0; i < GHOST_AMT; i++) {
 				if (intersect_sprites(&player->pos, ghost_get_pos(game->ghosts[i]))) {
-					take_damage(game);
+					if (player->is_powered_up) {
+						ghost_kill(game->ghosts[i]);
+					} else {
+						take_damage(game);
+					}
 				}
 			}
 
