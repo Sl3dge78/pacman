@@ -11,13 +11,6 @@
 #include "debug.h"
 #include "utils.h"
 
-enum GhostState {
-	WAITING,
-	ATTACKING,
-	FLEEING,
-	DEAD
-} typedef GhostState;
-
 struct Ghost {
 	SDL_Texture *texture;
 	SDL_FPoint starting_position;
@@ -34,9 +27,11 @@ struct Ghost {
 
 	GhostState state;
 	int wait_time;
+
+	float speed;
 };
 
-void ghost_reset(Ghost *this) {
+void ghost_reset(Ghost *this, const float speed) {
 	this->position = this->starting_position;
 
 	this->current_direction = NORTH;
@@ -52,13 +47,14 @@ void ghost_reset(Ghost *this) {
 	this->sprite.h = 16;
 
 	this->state = WAITING;
+	this->speed = speed;
 }
 
 SDL_FPoint *ghost_get_pos(Ghost *this) {
 	return &this->position;
 }
 
-Ghost *create_ghost(SDL_Renderer *renderer, const float x, const float y, const int wait_time, const int sprite_x, const int sprite_y) {
+Ghost *create_ghost(SDL_Renderer *renderer, const float x, const float y, const int wait_time, const int sprite_x, const int sprite_y, const float speed) {
 	Ghost *this = malloc(sizeof(Ghost));
 
 	SDL_Surface *surf = IMG_Load("resources/ghost.png");
@@ -68,11 +64,11 @@ Ghost *create_ghost(SDL_Renderer *renderer, const float x, const float y, const 
 	this->sprite.x = sprite_x;
 	this->sprite.y = sprite_y;
 
-	ghost_reset(this);
-
 	this->starting_position.x = x;
 	this->starting_position.y = y;
 	this->wait_time = wait_time;
+	this->speed = speed;
+
 	return this;
 }
 
@@ -152,25 +148,25 @@ void update_ghost(Ghost *this, int delta_time, const SDL_FPoint *player_pos, Map
 
 	switch (this->current_direction) {
 		case NORTH:
-			this->position.y -= GHOST_SPEED * delta_time / 1000;
+			this->position.y -= this->speed * delta_time / 1000;
 			this->position.x = round(this->position.x);
 			if (this->position.y <= this->current_destination.y)
 				next_node(this);
 			break;
 		case SOUTH:
-			this->position.y += GHOST_SPEED * delta_time / 1000;
+			this->position.y += this->speed * delta_time / 1000;
 			this->position.x = round(this->position.x);
 			if (this->position.y >= this->current_destination.y)
 				next_node(this);
 			break;
 		case WEST:
-			this->position.x -= GHOST_SPEED * delta_time / 1000;
+			this->position.x -= this->speed * delta_time / 1000;
 			this->position.y = round(this->position.y);
 			if (this->position.x <= this->current_destination.x)
 				next_node(this);
 			break;
 		case EAST:
-			this->position.x += GHOST_SPEED * delta_time / 1000;
+			this->position.x += this->speed * delta_time / 1000;
 			this->position.y = round(this->position.y);
 			if (this->position.x >= this->current_destination.x)
 				next_node(this);
@@ -214,5 +210,17 @@ void dbg_draw_ghost(Ghost *this, SDL_Renderer *renderer, TTF_Font *font, const S
 		SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
 		SDL_Rect dst = { this->current_destination.x * 16 + camera_offset->x, this->current_destination.y * 16 + camera_offset->y, 16, 16 };
 		SDL_RenderDrawRect(renderer, &dst);
+	}
+}
+
+void ghost_change_state(Ghost *this, const GhostState state) {
+	this->state = state;
+	switch (state) {
+		case FLEEING: {
+			this->speed /= 2;
+		}
+		case ATTACKING: {
+			this->speed *= 2;
+		}
 	}
 }

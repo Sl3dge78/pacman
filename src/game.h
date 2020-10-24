@@ -56,4 +56,6 @@ Tile get_tile_at_pos(const int x, const int y, const Map *map);
 
 int draw_text(SDL_Renderer *renderer, TTF_Font *font, char *text, const SDL_Point *src, Alignement align);
 
+static void next_level();
+
 #endif
