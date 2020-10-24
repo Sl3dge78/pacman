@@ -43,9 +43,6 @@ void ghost_reset(Ghost *this, const float speed) {
 	this->current_destination.x = (int)this->position.x;
 	this->current_destination.y = (int)this->position.y;
 
-	this->sprite.w = 16;
-	this->sprite.h = 16;
-
 	this->state = WAITING;
 	this->speed = speed;
 }
@@ -54,7 +51,7 @@ SDL_FPoint *ghost_get_pos(Ghost *this) {
 	return &this->position;
 }
 
-Ghost *create_ghost(SDL_Renderer *renderer, const float x, const float y, const int wait_time, const int sprite_x, const int sprite_y, const float speed) {
+Ghost *create_ghost(SDL_Renderer *renderer, const float x, const float y, const int wait_time, const int sprite_x, const int sprite_y) {
 	Ghost *this = malloc(sizeof(Ghost));
 
 	SDL_Surface *surf = IMG_Load("resources/ghost.png");
@@ -63,11 +60,12 @@ Ghost *create_ghost(SDL_Renderer *renderer, const float x, const float y, const 
 
 	this->sprite.x = sprite_x;
 	this->sprite.y = sprite_y;
+	this->sprite.w = 16;
+	this->sprite.h = 16;
 
 	this->starting_position.x = x;
 	this->starting_position.y = y;
 	this->wait_time = wait_time;
-	this->speed = speed;
 
 	return this;
 }
@@ -199,7 +197,7 @@ void dbg_draw_ghost(Ghost *this, SDL_Renderer *renderer, TTF_Font *font, const S
 	sprintf(buffer, "%f %f - %d", this->position.x, this->position.y, this->current_direction);
 	SDL_Point dst = { 0, 16 };
 	draw_text(renderer, font, buffer, &dst, ALIGN_LEFT);
-*/
+	*/
 	for (int i = 0; i < this->path_length; i++) {
 		Uint8 r = (255 / this->path_length * i);
 		SDL_SetRenderDrawColor(renderer, r, 255, 255, 255);

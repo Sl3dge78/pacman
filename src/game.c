@@ -91,7 +91,7 @@ typedef struct Game {
 } Game;
 
 static void switch_state(Game *game, State new_state);
-static void init_game(Game *game);
+static void init_level(Game *game);
 
 /*
  * MAP
@@ -225,7 +225,7 @@ static void switch_state(Game *game, State new_state) {
 	switch (new_state) {
 		case STATE_START_LEVEL: {
 			SDL_Log("State changed to START");
-			init_game(game);
+			init_level(game);
 			switch_state(game, STATE_WAIT);
 		} break;
 
@@ -235,8 +235,9 @@ static void switch_state(Game *game, State new_state) {
 			game->player->pos.x = 13.0f;
 			game->player->pos.y = 23.0f;
 			game->state.wait_state_data.timer = 5000;
+			float ghost_speed = 2.0f + game->level * 0.5f;
 			for (int i = 0; i < GHOST_AMT; i++) {
-				ghost_reset(game->ghosts[i]);
+				ghost_reset(game->ghosts[i], ghost_speed);
 			}
 			SDL_SetTextureColorMod(game->map->texture, 0, 0, 255);
 		} break;
@@ -418,7 +419,7 @@ int draw_text(SDL_Renderer *renderer, TTF_Font *font, char *text, const SDL_Poin
 	return w + src->x;
 }
 
-static void draw_ui(SDL_Renderer *renderer, TTF_Font *font, Player *player, State current_state) {
+static void draw_ui(SDL_Renderer *renderer, TTF_Font *font, Player *player, State current_state, const int level) {
 	SDL_Point place = { 0, 0 };
 
 	// Score
@@ -442,12 +443,12 @@ static void draw_ui(SDL_Renderer *renderer, TTF_Font *font, Player *player, Stat
 		SDL_RenderCopy(renderer, player->texture, &src, &dst);
 	}
 
-	switch (current_state) {
-		case STATE_WAIT: {
-			SDL_Point center = { MAP_WIDTH * 16 / 2, MAP_HEIGHT * 16 / 2 + 48 };
-			place.x = draw_text(renderer, font, "GET READY!", &center, ALIGN_CENTERED);
-		} break;
-	}
+	place.x += 16;
+
+	// Level
+	char level_str[10];
+	sprintf_s(level_str, 16 * sizeof(char), "Level : %03d", level);
+	place.x = draw_text(renderer, font, level_str, &place, ALIGN_LEFT);
 }
 
 static void draw_player(SDL_Renderer *renderer, Player *player, SDL_Point *camera_offset) {
@@ -506,7 +507,7 @@ static void draw(SDL_Renderer *renderer, Game *game) {
 	draw_map(renderer, game->map, &game->camera_position);
 	draw_player(renderer, game->player, &game->camera_position);
 
-	draw_ui(renderer, game->font, game->player, game->state.state);
+	draw_ui(renderer, game->font, game->player, game->state.state, game->level);
 
 	for (int i = 0; i < GHOST_AMT; i++) {
 		draw_ghost(renderer, game->ghosts[i], &game->camera_position);
@@ -546,22 +547,17 @@ static Game *load_resources(SDL_Renderer *renderer) {
 	game->ghosts[2] = create_ghost(renderer, 13.5f, 14.0f, 10000, 16, 0);
 	game->ghosts[3] = create_ghost(renderer, 15.5f, 14.0f, 15000, 16, 16);
 
-	return game;
-}
-
-static void init_game(Game *game) {
+	game->level = 1;
 	game->player->score = 0;
-	game->player->pac_left = PAC_AMOUNT;
 	game->player->new_life_pts = PTS_FOR_NEW_LIFE;
 	game->player->lives = STARTING_LIVES;
 	game->player->new_life_pts = PTS_FOR_NEW_LIFE;
+	game->player->pac_left = PAC_AMOUNT;
+	return game;
+}
+
+static void init_level(Game *game) {
 	game->player->is_powered_up = false;
-
-	float ghost_speed = 2.0f + game->level * 0.5f;
-	for (int i = 0; i < GHOST_AMT; i++) {
-		ghost_reset(game->ghosts[i], ghost_speed);
-	}
-
 	reset_map(game->map);
 }
 
