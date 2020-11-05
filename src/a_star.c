@@ -121,13 +121,94 @@ void a_star(const Map *map, const SDL_Point *start, const SDL_Point *end, SDL_Po
 				free(children[i]);
 				continue;
 			}
-			if (get_tile_at_pos(children[i]->pos.x, children[i]->pos.y, map) >= 0) {
+			if (map_get_collision(map, children[i]->pos.x, children[i]->pos.y, COLLISION_GHOST)) {
 				free(children[i]);
 				continue;
 			}
 
 			children[i]->g = current_node->g + 1;
 			children[i]->h = SDL_Point_Distance(&children[i]->pos, end);
+			children[i]->f = children[i]->g + children[i]->h;
+			int index = 0;
+			if (vector_has(open_list, children[i], &index)) {
+				if (children[i]->g > open_list->list[index]->g) {
+					free(children[i]);
+					continue;
+				}
+			}
+			vector_push_back(open_list, children[i]);
+		}
+
+		free(children);
+	}
+	vector_free(open_list);
+	vector_free(closed_list);
+}
+
+void reverse_a_star(const Map *map, const SDL_Point *start, const SDL_Point *place_to_flee, const int max_distance, SDL_Point **path, int *length) {
+	Vector *open_list = create_vector();
+	Vector *closed_list = create_vector();
+
+	Node *start_node = calloc(1, sizeof(Node));
+	start_node->pos = *start;
+
+	int starting_distance = SDL_Point_Distance(start, place_to_flee);
+
+	vector_push_back(open_list, start_node);
+	int current_iteration = 0;
+
+	while (open_list->length > 0) {
+		Node *current_node = open_list->list[0];
+		int index_to_delete = 0;
+		// Pick node to work on
+		for (int i = 0; i < open_list->length; i++) {
+			if (current_node->f > open_list->list[i]->f) {
+				current_node = open_list->list[i];
+				index_to_delete = i;
+			}
+		}
+
+		vector_push_back(closed_list, current_node);
+		vector_remove(open_list, index_to_delete);
+
+		if (current_node->h <= -max_distance - starting_distance) { // Exit point
+			*length = current_node->g + 1;
+			*path = realloc(*path, *length * sizeof(SDL_Point));
+			int x = *length;
+			for (Node *node = current_node; node != NULL; node = node->parent) {
+				x--;
+				(*path)[x] = node->pos;
+			}
+			break; // while
+		}
+		current_iteration++;
+
+		// Add adjacent nodes
+		Node **children = calloc(4, sizeof(Node *));
+		for (int i = 0; i < 4; i++) {
+			children[i] = malloc(sizeof(Node));
+			children[i]->pos = current_node->pos;
+			children[i]->parent = current_node;
+		}
+
+		children[0]->pos.x--;
+		children[1]->pos.x++;
+		children[2]->pos.y--;
+		children[3]->pos.y++;
+
+		// For each adjacent node
+		for (int i = 0; i < 4; i++) {
+			if (vector_has(closed_list, children[i], NULL)) {
+				free(children[i]);
+				continue;
+			}
+			if (map_get_collision(map, children[i]->pos.x, children[i]->pos.y, COLLISION_GHOST)) {
+				free(children[i]);
+				continue;
+			}
+
+			children[i]->g = current_node->g + 1;
+			children[i]->h = -SDL_Point_Distance(&children[i]->pos, place_to_flee);
 			children[i]->f = children[i]->g + children[i]->h;
 			int index = 0;
 			if (vector_has(open_list, children[i], &index)) {

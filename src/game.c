@@ -12,19 +12,11 @@
 
 #include "a_star.h"
 #include "ghost.h"
+#include "map.h"
 
 /*
  * DECLARATIONS
  */
-
-typedef Tile TileMap[MAP_SIZE];
-
-typedef struct Map {
-	TileMap map;
-	SDL_Texture *texture;
-	SDL_Rect rect;
-
-} Map;
 
 typedef struct Player {
 	SDL_FPoint pos;
@@ -94,68 +86,6 @@ static void switch_state(Game *game, State new_state);
 static void init_level(Game *game);
 
 /*
- * MAP
- */
-
-static int get_tile_id(const int x, const int y, const Map *map) {
-	return x + y * map->rect.w;
-}
-
-Tile get_tile_at_pos(const int x, const int y, const Map *map) {
-	if (x < 0 || x >= map->rect.w || y < 0 || y >= map->rect.h)
-		return OUTMAP;
-
-	return map->map[get_tile_id(x, y, map)];
-}
-
-static void toggle_map_color(SDL_Texture *texture) {
-	Uint8 r = 0;
-	SDL_GetTextureColorMod(texture, &r, NULL, NULL);
-
-	if (r == 255)
-		SDL_SetTextureColorMod(texture, 0, 0, 255);
-	else
-		SDL_SetTextureColorMod(texture, 255, 255, 255);
-}
-
-static void reset_map(Map *map) {
-	Map map2 = {
-		00, 02, 02, 02, 02, 02, 02, 02, 02, 02, 02, 02, 02, 01, 00, 02, 02, 02, 02, 02, 02, 02, 02, 02, 02, 02, 02, 01,
-		05, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, 05, 05, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, 05,
-		05, -2, 00, 02, 02, 01, -2, 00, 02, 02, 02, 01, -2, 05, 05, -2, 00, 02, 02, 02, 01, -2, 00, 02, 02, 01, -2, 05,
-		05, -3, 05, -1, -1, 05, -2, 05, -1, -1, -1, 05, -2, 05, 05, -2, 05, -1, -1, -1, 05, -2, 05, -1, -1, 05, -3, 05,
-		05, -2, 03, 02, 02, 04, -2, 03, 02, 02, 02, 04, -2, 03, 04, -2, 03, 02, 02, 02, 04, -2, 03, 02, 02, 04, -2, 05,
-		05, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, 05,
-		05, -2, 00, 02, 02, 01, -2, 00, 01, -2, 00, 02, 02, 02, 02, 02, 02, 01, -2, 00, 01, -2, 00, 02, 02, 01, -2, 05,
-		05, -2, 03, 02, 02, 04, -2, 05, 05, -2, 03, 02, 02, 01, 00, 02, 02, 04, -2, 05, 05, -2, 03, 02, 02, 04, -2, 05,
-		05, -2, -2, -2, -2, -2, -2, 05, 05, -2, -2, -2, -2, 05, 05, -2, -2, -2, -2, 05, 05, -2, -2, -2, -2, -2, -2, 05,
-		03, 02, 02, 02, 02, 01, -2, 05, 03, 02, 02, 01, -1, 05, 05, -1, 00, 02, 02, 04, 05, -2, 00, 02, 02, 02, 02, 04,
-		-1, -1, -1, -1, -1, 05, -2, 05, 00, 02, 02, 04, -1, 03, 04, -1, 03, 02, 02, 01, 05, -2, 05, -1, -1, -1, -1, -1,
-		-1, -1, -1, -1, -1, 05, -2, 05, 05, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 05, 05, -2, 05, -1, -1, -1, -1, -1,
-		-1, -1, -1, -1, -1, 05, -2, 05, 05, -1, 00, 02, 02, -4, -4, 02, 02, 01, -1, 05, 05, -2, 05, -1, -1, -1, -1, -1,
-		02, 02, 02, 02, 02, 04, -2, 03, 04, -1, 05, -1, -1, -1, -1, -1, -1, 05, -1, 03, 04, -2, 03, 02, 02, 02, 02, 02,
-		-1, -1, -1, -1, -1, -1, -2, -1, -1, -1, 05, -1, -1, -1, -1, -1, -1, 05, -1, -1, -1, -2, -1, -1, -1, -1, -1, -1,
-		02, 02, 02, 02, 02, 01, -2, 00, 01, -1, 05, -1, -1, -1, -1, -1, -1, 05, -1, 00, 01, -2, 00, 02, 02, 02, 02, 02,
-		-1, -1, -1, -1, -1, 05, -2, 05, 05, -1, 03, 02, 02, 02, 02, 02, 02, 04, -1, 05, 05, -2, 05, -1, -1, -1, -1, -1,
-		-1, -1, -1, -1, -1, 05, -2, 05, 05, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 05, 05, -2, 05, -1, -1, -1, -1, -1,
-		-1, -1, -1, -1, -1, 05, -2, 05, 05, -1, 00, 02, 02, 02, 02, 02, 02, 01, -1, 05, 05, -2, 05, -1, -1, -1, -1, -1,
-		00, 02, 02, 02, 02, 04, -2, 03, 04, -1, 03, 02, 02, 01, 00, 02, 02, 04, -1, 03, 04, -2, 03, 02, 02, 02, 02, 01,
-		05, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, 05, 05, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, 05,
-		05, -2, 00, 02, 02, 01, -2, 00, 02, 02, 02, 01, -2, 05, 05, -2, 00, 02, 02, 02, 01, -2, 00, 02, 02, 01, -2, 05,
-		05, -2, 03, 02, 01, 05, -2, 03, 02, 02, 02, 04, -2, 03, 04, -2, 03, 02, 02, 02, 04, -2, 05, 00, 02, 04, -2, 05,
-		05, -3, -2, -2, 05, 05, -2, -2, -2, -2, -2, -2, -2, -1, -1, -2, -2, -2, -2, -2, -2, -2, 05, 05, -2, -2, -3, 05,
-		03, 02, 01, -2, 05, 05, -2, 00, 01, -2, 00, 02, 02, 02, 02, 02, 02, 01, -2, 00, 01, -2, 05, 05, -2, 00, 02, 04,
-		00, 02, 04, -2, 03, 04, -2, 05, 05, -2, 03, 02, 02, 01, 00, 02, 02, 04, -2, 05, 05, -2, 03, 04, -2, 03, 02, 01,
-		05, -2, -2, -2, -2, -2, -2, 05, 05, -2, -2, -2, -2, 05, 05, -2, -2, -2, -2, 05, 05, -2, -2, -2, -2, -2, -2, 05,
-		05, -2, 00, 02, 02, 02, 02, 04, 03, 02, 02, 01, -2, 05, 05, -2, 00, 02, 02, 04, 03, 02, 02, 02, 02, 01, -2, 05,
-		05, -2, 03, 02, 02, 02, 02, 02, 02, 02, 02, 04, -2, 03, 04, -2, 03, 02, 02, 02, 02, 02, 02, 02, 02, 04, -2, 05,
-		05, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, -2, 05,
-		03, 02, 02, 02, 02, 02, 02, 02, 02, 02, 02, 02, 02, 02, 02, 02, 02, 02, 02, 02, 02, 02, 02, 02, 02, 02, 02, 04
-	};
-	SDL_memcpy(map->map, &map2, MAP_SIZE * sizeof(Tile));
-}
-
-/*
  * PLAYER
  */
 static void take_damage(Game *game) {
@@ -195,16 +125,9 @@ static void handle_player_movement(int delta_time, Player *player, Map *map, flo
 			new_pos.y = round(new_pos.y);
 			break;
 	}
-	switch (get_tile_at_pos((int)bound_pos.x, (int)bound_pos.y, map)) {
-		case EMPTY:
-		case OUTMAP:
-		case PAC:
-		case POWERUP:
-			player->pos = new_pos;
-			break;
 
-		default:
-			break;
+	if (!map_get_collision(map, (int)bound_pos.x, (int)bound_pos.y, COLLISION_PLAYER)) {
+		player->pos = new_pos;
 	}
 
 	// Wrap around
@@ -239,7 +162,7 @@ static void switch_state(Game *game, State new_state) {
 			for (int i = 0; i < GHOST_AMT; i++) {
 				ghost_reset(game->ghosts[i], ghost_speed);
 			}
-			SDL_SetTextureColorMod(game->map->texture, 0, 0, 255);
+			map_reset_color(game->map);
 		} break;
 
 		case STATE_NORMAL: {
@@ -317,20 +240,21 @@ static void update(const int delta_time, Game *game) {
 			}
 
 			Player *player = game->player;
-			handle_player_movement(delta_time, player, game->map, game->camera_position.x, game->camera_position.x + game->map->rect.w);
-			int id = get_tile_id(player->pos.x + .5f, player->pos.y + .5f, game->map);
-			switch (get_tile_at_pos(player->pos.x + 0.5f, player->pos.y + 0.5f, game->map)) {
+			handle_player_movement(delta_time, player, game->map, game->camera_position.x, game->camera_position.x + MAP_WIDTH);
+
+			switch (map_eat_at(game->map, player->pos.x + 0.5f, player->pos.y + 0.5f)) {
 				case PAC:
-					game->map->map[id] = EMPTY;
 					player->score += 100;
 					player->new_life_pts -= 100;
 					player->pac_left--;
 					break;
 				case POWERUP:
 					player->is_powered_up = true;
-					game->map->map[id] = EMPTY;
 					game->state.normal_state_data.power_up_timer = POWERUP_MAX_TIME;
 					game->state.normal_state_data.blink_timer = 200;
+					for (int i = 0; i < GHOST_AMT; i++) {
+						ghost_switch_state(game->ghosts[i], FLEEING);
+					}
 					break;
 			}
 			if (player->pac_left <= 0) {
@@ -347,7 +271,7 @@ static void update(const int delta_time, Game *game) {
 					data->blink_timer -= delta_time;
 
 					if (data->blink_timer < 0) {
-						toggle_map_color(game->map->texture);
+						map_toggle_color(game->map);
 						if (data->power_up_timer > 2000)
 							data->blink_timer = 200;
 						else
@@ -357,7 +281,7 @@ static void update(const int delta_time, Game *game) {
 
 				if (data->power_up_timer < 0) {
 					data->power_up_timer = 0;
-					SDL_SetTextureColorMod(game->map->texture, 0, 0, 255);
+					map_reset_color(game->map);
 					player->is_powered_up = false;
 				}
 			}
@@ -458,53 +382,11 @@ static void draw_player(SDL_Renderer *renderer, Player *player, SDL_Point *camer
 	SDL_RenderCopy(renderer, player->texture, &src, &dst);
 }
 
-static void draw_map(SDL_Renderer *renderer, Map *map, SDL_Point *camera_offset) {
-	SDL_Rect src = { 0, 0, 16, 16 };
-	SDL_Rect dst = { 0, 0, 16, 16 };
-
-	for (Uint32 y = 0; y < map->rect.h; y++) {
-		for (Uint32 x = 0; x < map->rect.w; x++) {
-			Uint32 val = x + y * map->rect.h;
-
-			switch (map->map[x + y * map->rect.w]) {
-				case OUTMAP:
-				case EMPTY:
-					continue;
-					break;
-				case PAC: {
-					SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-					SDL_Rect pac = { x * 16 + 6 + camera_offset->x, y * 16 + 6 + camera_offset->y, 4, 4 };
-					SDL_RenderFillRect(renderer, &pac);
-				} break;
-				case POWERUP: {
-					SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-					SDL_Rect pup = { x * 16 + 2 + camera_offset->x, y * 16 + 2 + camera_offset->y, 14, 14 };
-					SDL_RenderFillRect(renderer, &pup);
-				} break;
-				case DOOR: {
-					src.x = 3 * 16;
-					src.y = 0;
-					dst.x = x * 16 + camera_offset->x;
-					dst.y = y * 16 + camera_offset->y;
-					SDL_RenderCopy(renderer, map->texture, &src, &dst);
-				}
-				default: {
-					src.x = map->map[x + y * map->rect.w] % 3 * 16;
-					src.y = map->map[x + y * map->rect.w] / 3 * 16;
-					dst.x = x * 16 + camera_offset->x;
-					dst.y = y * 16 + camera_offset->y;
-					SDL_RenderCopy(renderer, map->texture, &src, &dst);
-				} break;
-			}
-		}
-	}
-}
-
 static void draw(SDL_Renderer *renderer, Game *game) {
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
 	SDL_RenderClear(renderer);
 
-	draw_map(renderer, game->map, &game->camera_position);
+	map_draw(game->map, renderer, &game->camera_position);
 	draw_player(renderer, game->player, &game->camera_position);
 
 	draw_ui(renderer, game->font, game->player, game->state.state, game->level);
@@ -531,21 +413,15 @@ static Game *load_resources(SDL_Renderer *renderer) {
 	game->player = calloc(1, sizeof(Player));
 	game->player->texture = IMG_LoadTexture(renderer, "resources/pac_man.png");
 
-	game->map = calloc(1, sizeof(Map));
-	game->map->texture = IMG_LoadTexture(renderer, "resources/walls.png");
-	SDL_SetTextureColorMod(game->map->texture, 0, 0, 255);
-	game->map->rect.x = 16;
-	game->map->rect.y = 16;
-	game->map->rect.w = MAP_WIDTH;
-	game->map->rect.h = MAP_HEIGHT;
+	game->map = map_load(renderer);
 
 	game->camera_position.x = 0;
 	game->camera_position.y = 16;
 
 	game->ghosts[0] = create_ghost(renderer, 13, 11, 0, 0, 0);
-	game->ghosts[1] = create_ghost(renderer, 11.5f, 14.0f, 5000, 0, 16);
-	game->ghosts[2] = create_ghost(renderer, 13.5f, 14.0f, 10000, 16, 0);
-	game->ghosts[3] = create_ghost(renderer, 15.5f, 14.0f, 15000, 16, 16);
+	//game->ghosts[1] = create_ghost(renderer, 11.5f, 14.0f, 5000, 0, 16);
+	//game->ghosts[2] = create_ghost(renderer, 13.5f, 14.0f, 10000, 16, 0);
+	//game->ghosts[3] = create_ghost(renderer, 15.5f, 14.0f, 15000, 16, 16);
 
 	game->level = 1;
 	game->player->score = 0;
@@ -570,9 +446,6 @@ static void destroy_game(Game *game) {
 
 	SDL_DestroyTexture(game->player->texture);
 	free(game->player);
-
-	SDL_DestroyTexture(game->map->texture);
-	free(game->map);
 
 	free(game);
 }

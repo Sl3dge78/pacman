@@ -47,6 +47,10 @@ void ghost_reset(Ghost *this, const float speed) {
 	this->speed = speed;
 }
 
+void ghost_switch_state(Ghost *this, const GhostState state) {
+	this->state = state;
+}
+
 SDL_FPoint *ghost_get_pos(Ghost *this) {
 	return &this->position;
 }
@@ -107,6 +111,16 @@ static void update_path(Ghost *this, const SDL_FPoint *player_pos, Map *map) {
 	this->current_destination.y = this->position.y;
 }
 
+static void update_flee_path(Ghost *this, const SDL_FPoint *player_pos, Map *map) {
+	SDL_Point a = { round(this->position.x), round(this->position.y) };
+	SDL_Point b = { (int)player_pos->x, (int)player_pos->y };
+	reverse_a_star(map, &a, &b, 2, &this->path, &this->path_length);
+
+	this->current_position_in_path = 0;
+	this->current_destination.x = this->position.x;
+	this->current_destination.y = this->position.y;
+}
+
 void update_ghost(Ghost *this, int delta_time, const SDL_FPoint *player_pos, Map *map) {
 	switch (this->state) {
 		case WAITING:
@@ -131,7 +145,11 @@ void update_ghost(Ghost *this, int delta_time, const SDL_FPoint *player_pos, Map
 			}
 			break;
 		case FLEEING:
-			// TODO
+			this->update_path_timer -= delta_time;
+			if (this->update_path_timer <= 0) {
+				this->update_path_timer = PATH_UPDATE_FREQ;
+				update_flee_path(this, player_pos, map);
+			}
 			break;
 		case DEAD:
 			this->update_path_timer -= delta_time;
@@ -200,7 +218,11 @@ void dbg_draw_ghost(Ghost *this, SDL_Renderer *renderer, TTF_Font *font, const S
 	*/
 	for (int i = 0; i < this->path_length; i++) {
 		Uint8 r = (255 / this->path_length * i);
+
 		SDL_SetRenderDrawColor(renderer, r, 255, 255, 255);
+		if (this->state == FLEEING)
+			SDL_SetRenderDrawColor(renderer, r, 0, 255, 255);
+
 		SDL_Rect dst = { this->path[i].x * 16 + camera_offset->x, this->path[i].y * 16 + camera_offset->y, 16, 16 };
 		SDL_RenderDrawRect(renderer, &dst);
 	}
