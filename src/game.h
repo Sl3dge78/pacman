@@ -13,7 +13,7 @@
 #define PTS_FOR_NEW_LIFE 100000
 #define STARTING_LIVES 2
 
-#define GHOST_AMT 1
+#define GHOST_AMT 4
 
 void run(SDL_Renderer *renderer);
 

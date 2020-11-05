@@ -8,11 +8,10 @@
 #include "game.h"
 
 /*
-
-	Get ready text isn't displayed
 	eating ghosts should grant score
 	display score text when eating ghosts
-
+	Audio !
+	Animations !
 */
 
 int main(int argc, char *args[]) {

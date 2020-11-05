@@ -378,6 +378,11 @@ static void draw_ui(SDL_Renderer *renderer, TTF_Font *font, Player *player, Stat
 	char level_str[10];
 	sprintf_s(level_str, 16 * sizeof(char), "Level : %03d", level);
 	place.x = draw_text(renderer, font, level_str, &place, ALIGN_LEFT);
+
+	if (current_state == STATE_WAIT) {
+		SDL_Point ready_pos = { 14.5f * 16.0f, 18.5f * 16.0f };
+		draw_text(renderer, font, "GET READY !", &ready_pos, ALIGN_CENTERED);
+	}
 }
 
 static void draw_player(SDL_Renderer *renderer, Player *player, SDL_Point *camera_offset) {
@@ -394,12 +399,12 @@ static void draw(SDL_Renderer *renderer, Game *game) {
 	map_draw(game->map, renderer, &game->camera_position);
 	draw_player(renderer, game->player, &game->camera_position);
 
-	draw_ui(renderer, game->font, game->player, game->state.state, game->level);
-
 	for (int i = 0; i < GHOST_AMT; i++) {
 		draw_ghost(renderer, game->ghosts[i], &game->camera_position);
 		dbg_draw_ghost(game->ghosts[i], renderer, game->font, &game->camera_position);
 	}
+
+	draw_ui(renderer, game->font, game->player, game->state.state, game->level);
 
 	SDL_RenderPresent(renderer);
 }
@@ -424,9 +429,9 @@ static Game *load_resources(SDL_Renderer *renderer) {
 	game->camera_position.y = 16;
 
 	game->ghosts[0] = create_ghost(renderer, 13, 11, 0, 0, 0);
-	//game->ghosts[1] = create_ghost(renderer, 11.5f, 14.0f, 5000, 0, 16);
-	//game->ghosts[2] = create_ghost(renderer, 13.5f, 14.0f, 10000, 16, 0);
-	//game->ghosts[3] = create_ghost(renderer, 15.5f, 14.0f, 15000, 16, 16);
+	game->ghosts[1] = create_ghost(renderer, 11.5f, 14.0f, 5000, 0, 16);
+	game->ghosts[2] = create_ghost(renderer, 13.5f, 14.0f, 10000, 16, 0);
+	game->ghosts[3] = create_ghost(renderer, 15.5f, 14.0f, 15000, 16, 16);
 
 	game->level = 1;
 	game->player->score = 0;
