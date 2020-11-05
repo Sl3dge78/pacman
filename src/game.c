@@ -266,29 +266,34 @@ static void update(const int delta_time, Game *game) {
 			}
 			if (player->is_powered_up) {
 				NormalStateData *data = &game->state.normal_state_data;
-				if (data->power_up_timer > 0) {
+				if (data->power_up_timer >= 0) {
 					data->power_up_timer -= delta_time;
 					data->blink_timer -= delta_time;
+				}
 
-					if (data->blink_timer < 0) {
-						map_toggle_color(game->map);
-						if (data->power_up_timer > 2000)
-							data->blink_timer = 200;
-						else
-							data->blink_timer = 100;
-					}
+				if (data->blink_timer < 0) {
+					map_toggle_color(game->map);
+					if (data->power_up_timer > 2000)
+						data->blink_timer = 200;
+					else
+						data->blink_timer = 100;
 				}
 
 				if (data->power_up_timer < 0) {
 					data->power_up_timer = 0;
-					map_reset_color(game->map);
 					player->is_powered_up = false;
+
+					map_reset_color(game->map);
+					for (int i = 0; i < GHOST_AMT; i++) {
+						ghost_switch_state(game->ghosts[i], ATTACKING);
+					}
 				}
 			}
 			for (int i = 0; i < GHOST_AMT; i++) {
 				if (intersect_sprites(&player->pos, ghost_get_pos(game->ghosts[i]))) {
 					if (player->is_powered_up) {
 						ghost_kill(game->ghosts[i]);
+						player->score += 1000;
 					} else {
 						take_damage(game);
 					}
@@ -434,6 +439,7 @@ static Game *load_resources(SDL_Renderer *renderer) {
 
 static void init_level(Game *game) {
 	game->player->is_powered_up = false;
+	game->player->pac_left = PAC_AMOUNT;
 	reset_map(game->map);
 }
 

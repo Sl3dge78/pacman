@@ -9,8 +9,9 @@
 
 /*
 
-	Debug
-	Implement fleeing pathfinding
+	Get ready text isn't displayed
+	eating ghosts should grant score
+	display score text when eating ghosts
 
 */
 
