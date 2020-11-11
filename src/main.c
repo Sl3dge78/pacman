@@ -11,7 +11,8 @@
 	Display score text when eating ghosts
 	Freeze frame when eating ghosts
 	Audio !
-	Animations !
+	Animations ! v 
+	Win game state (blink screen and stuff)
 */
 
 int main(int argc, char *args[]) {
