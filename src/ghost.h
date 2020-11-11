@@ -6,7 +6,7 @@
 #include "game.h"
 #include "map.h"
 
-#define PATH_UPDATE_FREQ 1000
+#define PATH_UPDATE_FREQ 2000
 
 struct Ghost;
 typedef struct Ghost Ghost;

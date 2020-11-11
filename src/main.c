@@ -8,8 +8,8 @@
 #include "game.h"
 
 /*
-	eating ghosts should grant score
-	display score text when eating ghosts
+	Display score text when eating ghosts
+	Freeze frame when eating ghosts
 	Audio !
 	Animations !
 */
@@ -25,7 +25,7 @@ int main(int argc, char *args[]) {
 	SDL_Renderer *renderer = NULL;
 	renderer = SDL_CreateRenderer(window, -1, 0);
 
-	run(renderer);
+	run(renderer, window);
 
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);

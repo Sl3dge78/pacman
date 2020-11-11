@@ -1,8 +1,19 @@
 #ifndef GAME_H
 #define GAME_H
 
+#include <stdio.h>
+
 #include "SDL2/SDL.h"
+#include "SDL2/SDL_image.h"
 #include "SDL2/SDL_ttf.h"
+
+#include "debug.h"
+#include "utils.h"
+
+#include "a_star.h"
+#include "ghost.h"
+#include "map.h"
+#include "player.h"
 
 #define FPS 60
 #define FRAME_TIME 1.0f / (float)FPS
@@ -15,7 +26,7 @@
 
 #define GHOST_AMT 4
 
-void run(SDL_Renderer *renderer);
+void run(SDL_Renderer *renderer, SDL_Window *window);
 
 struct GraphMap;
 typedef struct GraphMap GraphMap;
@@ -25,14 +36,6 @@ enum Alignement {
 	ALIGN_CENTERED,
 	ALIGN_RIGHT
 } typedef Alignement;
-
-enum Direction {
-	EAST = 0,
-	SOUTH = 1,
-	NORTH = 2,
-	WEST = 3,
-	NONE
-} typedef Direction;
 
 int draw_text(SDL_Renderer *renderer, TTF_Font *font, char *text, const SDL_Point *src, Alignement align);
 static void next_level();
