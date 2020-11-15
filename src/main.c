@@ -9,11 +9,15 @@
 #include "game.h"
 
 /*
-	Display score text when eating ghosts
-	Freeze frame when eating ghosts
-	Audio !
-	Animations ! v 
+	Fix the mem leaks
 	Win game state (blink screen and stuff)
+	Add multiple behaviours for ghosts
+	More SFX (when empowered, eating ghosts,...)
+	Improve ghost eating 
+		SFX
+		Freeze frame when eating ghosts
+		Display score text when eating ghosts
+		Eye srpite
 */
 
 int main(int argc, char *args[]) {
