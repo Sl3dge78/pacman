@@ -10,6 +10,7 @@
 
 #define ANIMATION_SPEED 100 //MS
 #define DEATH_ANIMATION_SPEED 250 //MS
+#define PLAYER_SPEED 3.5f
 
 struct Player;
 typedef struct Player Player;

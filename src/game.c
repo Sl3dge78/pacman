@@ -59,6 +59,10 @@ typedef struct Game {
 
 	bool is_powered_up;
 
+	Mix_Music *intro_bgm;
+	Mix_Chunk *death_sfx;
+	Mix_Chunk *waka_sfx;
+
 } Game;
 
 static void switch_state(Game *game, State new_state);
@@ -83,12 +87,13 @@ static void switch_state(Game *game, State new_state) {
 		case STATE_START_LEVEL: {
 			SDL_Log("State changed to START");
 			init_level(game);
+			Mix_PlayMusic(game->intro_bgm, 1);
 			switch_state(game, STATE_WAIT);
 		} break;
 
 		case STATE_WAIT: {
 			SDL_Log("State changed to WAIT");
-			game->state.wait_state_data.timer = 5000;
+			game->state.wait_state_data.timer = 5500;
 
 			player_reset(game->player);
 
@@ -106,7 +111,7 @@ static void switch_state(Game *game, State new_state) {
 		} break;
 
 		case STATE_DEATH: {
-			game->state.kill_state_data.kill_timer = 1500;
+			game->state.kill_state_data.kill_timer = 2000;
 			player_kill(game->player);
 		} break;
 
@@ -170,6 +175,7 @@ static void update(const int delta_time, Game *game) {
 
 			switch (map_eat_at(game->map, player_get_pos(game->player)->x + 0.5f, player_get_pos(game->player)->y + 0.5f)) {
 				case PAC:
+					Mix_PlayChannel(0, game->waka_sfx, 0);
 					game->score += 100;
 					game->new_life_pts -= 100;
 					game->pac_left--;
@@ -228,6 +234,7 @@ static void update(const int delta_time, Game *game) {
 		} break;
 
 		case STATE_DEATH: {
+			Mix_PlayChannel(-1, game->death_sfx, 0);
 			player_play_death_animation(game->player, delta_time);
 			KillStateData *data = &game->state.kill_state_data;
 			if (data->kill_timer > 0) {
@@ -365,6 +372,11 @@ static Game *load_resources(SDL_Renderer *renderer) {
 	game->lives = STARTING_LIVES;
 	game->new_life_pts = PTS_FOR_NEW_LIFE;
 	game->pac_left = PAC_AMOUNT;
+
+	game->intro_bgm = Mix_LoadMUS("resources/audio/intro.wav");
+	game->death_sfx = Mix_LoadWAV("resources/audio/death.wav");
+	game->waka_sfx = Mix_LoadWAV("resources/audio/waka.wav");
+
 	return game;
 }
 
@@ -380,6 +392,10 @@ static void destroy_game(Game *game) {
 	}
 
 	player_free(game->player);
+
+	Mix_FreeMusic(game->intro_bgm);
+	Mix_FreeChunk(game->death_sfx);
+	Mix_FreeChunk(game->waka_sfx);
 
 	TTF_CloseFont(game->font);
 

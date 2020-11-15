@@ -53,7 +53,7 @@ void player_input(Player *player, SDL_Event *e) {
 }
 
 void player_update(Player *player, int delta_time, Map *map, float min_x, float max_x) {
-	float speed = 5.0f * delta_time / 1000.0f;
+	float speed = PLAYER_SPEED * delta_time / 1000.0f;
 	SDL_FPoint new_pos = player->pos;
 	SDL_FPoint bound_pos = player->pos;
 	bound_pos.x += .5f;
