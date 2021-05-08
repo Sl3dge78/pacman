@@ -25,23 +25,23 @@ int main(int argc, char *args[]) {
 	IMG_Init(IMG_INIT_PNG);
 	TTF_Init();
 	Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 4096);
-
+    
 	SDL_Window *window = NULL;
 	window = SDL_CreateWindow("Pacman", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 16 * 28, 16 * 32, 0);
-
+    
 	SDL_Renderer *renderer = NULL;
 	renderer = SDL_CreateRenderer(window, -1, 0);
-
+    
 	run(renderer, window);
-
+    
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
-
+    
 	Mix_CloseAudio();
 	TTF_Quit();
 	IMG_Quit();
 	SDL_Quit();
-
+    
 	DBG_dump_memory_leaks();
 	return 0;
 }
